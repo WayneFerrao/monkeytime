@@ -16,6 +16,7 @@ firebase-debug.log*
 # it commented so all members can deploy to the same project(s) in .firebaserc.
 # .firebaserc
 functions/serviceAccountKey.json
+functions/firebaseConfig.json
 # Runtime data
 pids
 *.pid
