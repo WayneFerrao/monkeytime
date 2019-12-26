@@ -1,5 +1,5 @@
 // This contains the handlers for all the requests to the users route
-const { db } = require('../util/admin');
+const { db, admin } = require('../util/admin');
 const  firebase = require('firebase');
 const config = require('../util/config');
 firebase.initializeApp(config);
@@ -17,6 +17,8 @@ exports.signUp = (req, res)=>{
     
     const {valid , errors } = validateSignUpData(newUser);
     if(!valid) return res.status(400).json(errors);
+
+    const noImg = 'default-profile.png';
     
     let token, userId;
     // Go into users collection and see if there's already a user with
@@ -37,14 +39,16 @@ exports.signUp = (req, res)=>{
         .then((data) => {
             userId = data.user.uid;
             return data.user.getIdToken();
-        })
-        // this .then is for when the getIdToken comes back/returns
+        })// this .then is for when the getIdToken comes back/returns
         .then((idToken) => {
             token = idToken;
             const userCredentials = {
                 handle: newUser.handle,
                 email: newUser.email,
                 createdAt: new Date().toISOString(),
+                imageUrl:`https://firebasestorage.googleapis.com/v0/b/${
+                    config.storageBucket
+                }/o/${noImg}?alt=media`,
                 userId,
             };
             // Create new user document in the "users" collection & names it handle that
@@ -92,3 +96,53 @@ exports.login = (req, res) => {
             } else return res.status(500).json({error: err.code});
         });
 }
+
+exports.uploadImage = (req, res) =>{
+     const Busboy = require('busboy');
+     const path = require('path'); 
+     const os = require('os');
+     const fs = require('fs');
+     const busboy = new Busboy({ headers: req.headers });
+
+     let imageFileName;
+     let imageToBeUploaded = {}; 
+
+     // Event name is called file for file uploads
+     busboy.on('file', (fieldname, file, filename, encoding, mimetype) => {
+        console.log(fieldname);
+        console.log(filename);
+        console.log(mimetype);
+        // We need to extract image type. 
+        const imageExtension = filename.split('.')[filename.split('.').length-1];
+        // The next line creates 82932894.png for example
+        imageFileName = `${Math.round(Math.random()*10000000000)}.${imageExtension}`;
+        // tmpdir bc this is a cloud function,not actual server
+        const filepath = path.join(os.tmpdir(), imageFileName);
+        imageToBeUploaded = {filepath, mimetype};
+        file.pipe(fs.createWriteStream(filepath)); //Creates file
+     });
+     busboy.on('finish', () => { 
+        admin.storage().bucket().upload(imageToBeUploaded.filepath, {
+            resumable:false,
+            metadata: {
+                metadata:{
+                    contentType: imageToBeUploaded.mimetype
+                }
+            }
+        })
+        .then(() =>{ // Construct image url to add it to our user.
+            // Without alt media, it would automatically dl. alt=media displays it to our browser
+            const imageUrl = `https://firebasestorage.googleapis.com/v0/b/${config.storageBucket}/o/${imageFileName}?alt=media`
+            // Add image url to user's document
+            return db.doc(`/users/${req.user.handle}`).update({imageUrl});
+        })
+        .then(() =>{
+            return res.json({message: 'Image uploaded successfully'});
+        })
+        .catch(err => {
+            console.error(err);
+            return res.status(500).json({error: err.code });
+        })
+     });
+     busboy.end(req.rawBody);
+}; 

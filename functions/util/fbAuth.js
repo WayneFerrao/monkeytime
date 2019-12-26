@@ -1,10 +1,12 @@
 // Authentication middleware function
 
-const { admin } = require('./admin');
+const { admin, db } = require('./admin');
 module.exports = (req, res, next) => {
     let idToken; // initialize ID Token
     // Checks if the authorization header exists and if it starts with Bearer
-    if (req.headers.authorization && req.headers.authorization.startsWith('Bearer ')) {
+    if (
+        req.headers.authorization && 
+        req.headers.authorization.startsWith('Bearer ')) {
         // Extract the id token.
         idToken = req.headers.authorization.split('Bearer ')[1];
     } else {
