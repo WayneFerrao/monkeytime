@@ -17,6 +17,7 @@ firebase-debug.log*
 # .firebaserc
 functions/serviceAccountKey.json
 functions/firebaseConfig.json
+functions/util/config.js
 # Runtime data
 pids
 *.pid
