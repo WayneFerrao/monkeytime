@@ -109,9 +109,9 @@ exports.uploadImage = (req, res) =>{
 
      // Event name is called file for file uploads
      busboy.on('file', (fieldname, file, filename, encoding, mimetype) => {
-        console.log(fieldname);
-        console.log(filename);
-        console.log(mimetype);
+         if(mimetype !== 'image/jpeg' && mimetype !== 'image/png'){
+             return res.status(400).json({error: 'Wrong file type, please upload a jpeg or png instead'});
+         }
         // We need to extract image type. 
         const imageExtension = filename.split('.')[filename.split('.').length-1];
         // The next line creates 82932894.png for example
