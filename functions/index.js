@@ -5,7 +5,13 @@ const app = require('express')();
 const FBAuth = require('./util/fbAuth');
 
 const {getAllShouts, postAShout} = require('./handlers/shouts');
-const {signUp, login, uploadImage, addUserDetails} = require('./handlers/users');
+const {
+  signUp,
+  login,
+  uploadImage,
+  addUserDetails,
+  getAuthenticatedUser} =
+  require('./handlers/users');
 
 // Express allows us to use the same endpoint name,'shouts', but handle 2 endpoints; GET, POST etc.
 // Without express, you'd have to check whether we're doing POST or GET and respond accordingly.
@@ -17,6 +23,7 @@ app.get('/shouts', getAllShouts);
 // we've already been authenticated
 app.post('/shout', FBAuth, postAShout);// Post 1 shout
 app.post('/user', FBAuth, addUserDetails);
+app.get('/user', FBAuth, getAuthenticatedUser);
 
 // Users routes
 app.post('/signup', signUp);
