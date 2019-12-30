@@ -1,11 +1,10 @@
 module.exports = {
   'env': {
     'browser': true,
+    'commonjs': true,
     'es6': true,
-    'node': true,
   },
   'extends': [
-    'plugin:react/recommended',
     'google',
   ],
   'globals': {
@@ -17,10 +16,8 @@ module.exports = {
       'jsx': true,
     },
     'ecmaVersion': 2018,
-    'sourceType': 'module',
   },
   'plugins': [
-    'react',
   ],
   'rules': {
     "max-len": [2, 100, 2, {"ignoreUrls": true}]
