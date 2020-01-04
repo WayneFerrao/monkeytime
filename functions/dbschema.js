@@ -21,6 +21,14 @@ const db = {
       commentCount: 3,
     },
   ],
+  comments: [
+    {
+      userHandle: 'user',
+      shoutId: 'fkjvnsdfvnsdkfjnv',
+      body: 'Ayy lmao',
+      createdAt: '2019-12-17T22:22:47.480Z',
+    },
+  ],
 };
 
 const userDetails = {

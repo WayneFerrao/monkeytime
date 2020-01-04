@@ -4,7 +4,7 @@ const app = require('express')();
 
 const FBAuth = require('./util/fbAuth');
 
-const {getAllShouts, postAShout} = require('./handlers/shouts');
+const {getAllShouts, postAShout, getAShout, commentOnShout} = require('./handlers/shouts');
 const {
   signUp,
   login,
@@ -18,15 +18,22 @@ const {
 // The first param is name of route and 2nd is the handler.
 // These function access the same endpoint name, but with different request types.
 
+// In any route with FBAuth as middleware, before we even enter code block, we've been authenticated
+
 app.get('/shouts', getAllShouts);
-// In this/any route where we add FBAuth as middleware, before we even enter code block,
-// we've already been authenticated
 app.post('/shout', FBAuth, postAShout);// Post 1 shout
-app.post('/user', FBAuth, addUserDetails);
-app.get('/user', FBAuth, getAuthenticatedUser);
+app.get('/shout/:shoutId', getAShout); // :shoutID is a route param
+app.post('/shout/:shoutId/comment', FBAuth, commentOnShout);
+// TODO: delete shout
+// TODO: like a shout
+// TODO: unlike a shout
+
 
 // Users routes
 app.post('/signup', signUp);
 app.post('/login', login);
 app.post('/user/image', FBAuth, uploadImage); // Protected route so we need middleware
+app.post('/user', FBAuth, addUserDetails);
+app.get('/user', FBAuth, getAuthenticatedUser);
+
 exports.api = functions.https.onRequest(app);
