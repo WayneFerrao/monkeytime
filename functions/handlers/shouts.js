@@ -132,12 +132,11 @@ exports.likeShout = (req, res) => {
         }
       })
       .then((data) => {
-        console.log(data.empty);
         if (data.empty) {// We don't have the like
           return db
               .collection('likes')
               .add({ // add a like as the current user
-                screamId: req.params.shoutId,
+                shoutId: req.params.shoutId,
                 userHandle: req.user.handle,
               })
               .then(() => { // Can't return yet, must first update # of likes property in the shout.
