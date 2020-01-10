@@ -4,14 +4,22 @@ const app = require('express')();
 
 const FBAuth = require('./util/fbAuth');
 
-const {getAllShouts, postAShout, getAShout, commentOnShout} = require('./handlers/shouts');
+const {
+  getAllShouts,
+  postAShout,
+  getAShout,
+  commentOnShout,
+  likeShout,
+  unlikeShout,
+} = require('./handlers/shouts');
+
 const {
   signUp,
   login,
   uploadImage,
   addUserDetails,
-  getAuthenticatedUser} =
-  require('./handlers/users');
+  getAuthenticatedUser,
+} = require('./handlers/users');
 
 // Express allows us to use the same endpoint name,'shouts', but handle 2 endpoints; GET, POST etc.
 // Without express, you'd have to check whether we're doing POST or GET and respond accordingly.
@@ -26,6 +34,9 @@ app.get('/shout/:shoutId', getAShout); // :shoutID is a route param
 app.post('/shout/:shoutId/comment', FBAuth, commentOnShout);
 // TODO: delete shout
 // TODO: like a shout
+app.get('/shout/:shoutId/like', FBAuth, likeShout);
+app.get('/shout/:shoutId/unlike', FBAuth, unlikeShout);
+
 // TODO: unlike a shout
 
 
