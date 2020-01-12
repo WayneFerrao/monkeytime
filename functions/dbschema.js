@@ -29,6 +29,16 @@ const db = {
       createdAt: '2019-12-17T22:22:47.480Z',
     },
   ],
+  notifications: [
+    {
+      recipient: 'user',
+      sender: 'Wayne',
+      read: 'true | false',
+      shoutId: 'ajdnfkjvndfjva',
+      type: 'like | comment',
+      createdAt: '2019-12-17T22:22:47.480Z',
+    },
+  ],
 };
 
 const userDetails = {
