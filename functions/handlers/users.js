@@ -258,3 +258,22 @@ exports.uploadImage = (req, res) => {
   });
   busboy.end(req.rawBody);
 };
+
+//
+exports.markNotificationsRead = (req, res) => {
+  // Here we do a batch write where we update multiple documents at once on Firebase
+  const batch = db.batch();
+  req.body.forEach((notificationId) => {
+    const notification = db.doc(`/notifications/${notificationId}`);
+    batch.update(notification, {read: true});
+  });
+  batch.commit()
+      .then(()=>{
+        return res.json({message: 'Notifications marked read'});
+      })
+      .catch((err) =>{
+        console.error(err);
+        return res.status(500).json({error: err.code});
+      });
+}
+;
