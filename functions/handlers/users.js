@@ -69,8 +69,8 @@ exports.signUp = (req, res) => {
         if (err.code === 'auth/email-already-in-use') {
         // 400 client error/bad request
           return res.status(400).json({email: 'Bruh this email taken'});
-        } else {
-          res.status(501).json({error: err.code}); // 500 = Server error
+        } else {// 500 = Server error
+          res.status(500).json({general: 'Something went wrong, please try again'}); 
         }
       });
 };
@@ -97,6 +97,8 @@ exports.login = (req, res) => {
       })
       .catch((err) => {
         console.error(err);
+        // auth/wrong-password
+        // auth/user-not-found
         if (err.code === 'auth/wrong-password') {
           return res
               .status(403)
@@ -262,8 +264,10 @@ exports.uploadImage = (req, res) => {
 //
 exports.markNotificationsRead = (req, res) => {
   // Here we do a batch write where we update multiple documents at once on Firebase
+  // The body of the request includes an array of notification IDs
   const batch = db.batch();
   req.body.forEach((notificationId) => {
+    // Assign notif to temp variable and update its 'read' field
     const notification = db.doc(`/notifications/${notificationId}`);
     batch.update(notification, {read: true});
   });
@@ -275,5 +279,4 @@ exports.markNotificationsRead = (req, res) => {
         console.error(err);
         return res.status(500).json({error: err.code});
       });
-}
-;
+};

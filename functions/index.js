@@ -35,10 +35,9 @@ app.get('/shouts', getAllShouts);
 app.post('/shout', FBAuth, postAShout);// Post 1 shout
 app.get('/shout/:shoutId', getAShout); // :shoutID is a route param
 app.post('/shout/:shoutId/comment', FBAuth, commentOnShout);
-app.delete('/shout/:shoutId/', FBAuth, deleteShout);
+app.delete('/shout/:shoutId', FBAuth, deleteShout);
 app.get('/shout/:shoutId/like', FBAuth, likeShout);
 app.get('/shout/:shoutId/unlike', FBAuth, unlikeShout);
-
 
 // Users routes
 app.post('/signup', signUp);
@@ -51,14 +50,13 @@ app.post('/notifications', FBAuth, markNotificationsRead);
 
 exports.api = functions.https.onRequest(app);
 
-
 exports.createNotificationOnLike = functions.region('us-central1').firestore.document('likes/{id}')
 // .onCreate is ran whenever a document is created represented by snapshot
     .onCreate((snapshot) =>{
       // Need the data from the shout, which is extracted from the snapshot data
-      db.doc(`/shouts/${snapshot.data().shoutId}`).get()
+      return db.doc(`/shouts/${snapshot.data().shoutId}`).get()
           .then((doc) =>{ // doc refers to this shout that was fetched
-            if (doc.exists) {
+            if (doc.exists && doc.data().userHandle !== snapshot.data().userHandle) {
               // Rmb that set creates document
               return db.doc(`/notifications/${snapshot.id}`).set({// Notif ID = like/comment ID
                 createdAt: new Date().toISOString(),
@@ -70,35 +68,31 @@ exports.createNotificationOnLike = functions.region('us-central1').firestore.doc
               });
             }
           })
-          .then(() => {
-            return;
-          })
-          .catch( (err) => {
+          .catch((err) => {
             console.error(err);
-            return; // Don't need to send back a res bc this is a db trigger, not an API endpoint.
+            // Don't need to send back a res bc this is a db trigger, not an API endpoint.
           });
     });
 
-exports.deleteNotificationonUnlike = functions.region('us-central1')
+exports.deleteNotificationOnUnlike = functions
     .firestore.document('likes/{id}')
+    // When a user unlikes a post, that corresponding document is deleted
     .onDelete((snapshot) =>{
-      db.doc(`/notifications/${snapshot.id}`)
+      // Delete the notification with the corresponding ID
+      return db.doc(`/notifications/${snapshot.id}`)
           .delete()
-          .then(()=>{
-            return;
-          })
           .catch((err) => {
             console.error(err);
             return;
           });
     });
 
-exports.createNotificationOnComment = functions.region('us-central1')
+exports.createNotificationOnComment = functions
     .firestore.document('comments/{id}')
     .onCreate((snapshot) => {
-      db.doc(`/shouts/${snapshot.data().shoutId}`).get()
+      return db.doc(`/shouts/${snapshot.data().shoutId}`).get()
           .then((doc) =>{
-            if (doc.exists) {
+            if (doc.exists && doc.data().userHandle !== snapshot.data().userHandle) {
               return db.doc(`/notifications/${snapshot.id}`).set({
                 createdAt: new Date().toISOString(),
                 recipient: doc.data().userHandle,
@@ -109,11 +103,64 @@ exports.createNotificationOnComment = functions.region('us-central1')
               });
             }
           })
-          .then(() => {
-            return;
-          })
           .catch( (err) => {
             console.error(err);
             return;
+          });
+    });
+
+exports.onUserImageChange = functions
+    .firestore.document('/users/{userId}')// listen to this document
+    .onUpdate((change) =>{
+      console.log(change.before.data());
+      console.log(change.after.data());
+      // Change the image on the post that the user created
+      if (change.before.data().imageUrl !== change.after.data().imageUrl) {
+        console.log('Image has changed');
+        const batch = db.batch();
+        return db
+            .collection('shouts')
+            .where('userHandle', '==', change.before.data().handle)
+            .get()
+            .then((data) => {
+              // For each doc that this user created
+              data.forEach((doc) => {
+                const shout = db.doc(`/shouts/${doc.id}`);
+                batch.update(shout, {userImage: change.after.data().imageUrl});
+              });
+              return batch.commit();
+            });
+      } else return true;
+    });
+
+exports.onShoutDelete = functions
+    .firestore.document('/shouts/{shoutId}')
+    .onDelete((snapshot, context) => {
+      const shoutId = context.params.shoutId;
+      const batch = db.batch();
+      // Find all comments with this shoutID
+      return db.collection('comments').where('shoutId', '==', shoutId).get()
+          .then((data) =>{
+            data.forEach((doc) => {
+              batch.delete(db.doc(`/comments/${doc.id}`));
+            });
+            // Find all like documents on this shout by fetching those with the shoutID
+            return db.collection('likes').where('shoutId', '==', shoutId).get();
+          })
+          .then((data) => {
+            data.forEach((doc) => {
+              batch.delete(db.doc(`/likes/${doc.id}`));
+            });
+            // Find all notif documents for this shout by fetching those with the shoutID
+            return db.collection('notifications').where('shoutId', '==', shoutId).get();
+          })
+          .then((data) => {
+            data.forEach((doc) => {
+              batch.delete(db.doc(`/notifications/${doc.id}`));
+            });
+            return batch.commit();
+          })
+          .catch((err) => {
+            console.error(err);
           });
     });

@@ -2,7 +2,7 @@
 const {db} = require('../util/admin');
 
 exports.getAllShouts = (req, res) => {
-  // .get returns a promise which holds a querySnapshot, containing an array of documents
+  // .get() returns a promise which holds a querySnapshot, containing an array of documents
   db.collection('shouts')
       .orderBy('createdAt', 'desc')
       .get() // returns all documents as an array
@@ -15,6 +15,9 @@ exports.getAllShouts = (req, res) => {
             body: doc.data().body,
             userHandle: doc.data().userHandle,
             createdAt: doc.data().createdAt,
+            commentCount: doc.data().commentCount,
+            likeCount: doc.data().likeCount,
+            userImage: doc.data().userImage,
           });
         });
         return res.json(posts);
@@ -27,6 +30,7 @@ exports.postAShout = (req, res) => {
   if (req.body.body.trim() === '') {
     return res.status(400).json({body: 'Body must not be empty'});
   }
+  // Extract the post from user request
   const newShout = {
     body: req.body.body,
     userHandle: req.user.handle,
@@ -53,11 +57,15 @@ exports.getAShout = (req, res) => {
   db.doc(`/shouts/${req.params.shoutId}`)
       .get()
       .then((doc) => {
+        // Verify shout exists
         if (!doc.exists) {
           return res.status(404).json({error: 'Shout not found'});
         }
         shoutData = doc.data();
         shoutData.shoutId = doc.id;
+        // At this point, shoutData holds all the data and id of the fetched shout
+        // However when we fetch a shout, we also wanna see all the comments on it.
+        // Therefore we fetch all the comments who have this shoutID
         return db
             .collection('comments')
             .orderBy('createdAt', 'desc')
@@ -65,10 +73,12 @@ exports.getAShout = (req, res) => {
             .get();
       })
       .then((data) => {
+        // Create an attribute in our shoutData object, which is an array holding all comments
         shoutData.comments = [];
         data.forEach((doc) =>{
           shoutData.comments.push(doc.data());
         });
+        // Now our shoutData has all relevant info so we can return it.
         return res.json(shoutData);
       })
       .catch((err) =>{
@@ -79,8 +89,11 @@ exports.getAShout = (req, res) => {
 
 // Comment on a shout
 exports.commentOnShout = (req, res) =>{
-  if (req.body.body.trim() === '') return res.status(400).json({error: 'Must not be empty'});
-
+  // Verify that you commented smth
+  if (req.body.body.trim() === '') {
+    return res.status(400).json({comment: 'Must not be empty'});
+  }
+  // Create comment document with all necessary fields
   const newComment = {
     body: req.body.body,
     createdAt: new Date().toISOString(),
@@ -88,15 +101,16 @@ exports.commentOnShout = (req, res) =>{
     userHandle: req.user.handle,
     userImage: req.user.imageUrl,
   };
-
+  // Fetch the shout
   db.doc(`/shouts/${req.params.shoutId}`).get()
       .then((doc) => {
         if (!doc.exists) {
           return res.status(404).json({error: 'Shout not found'});
         }
+        // The shout exists so update its commentCount attribute"
         return doc.ref.update({commentCount: doc.data().commentCount + 1});
       })
-      .then(() =>{
+      .then(() =>{ // Add comment to comments collection
         return db.collection('comments').add(newComment);
       })
       .then(() => {
@@ -113,6 +127,7 @@ exports.commentOnShout = (req, res) =>{
 // It's more efficient to spread likes and comments in different collections instead of having all
 // likes and comments for a shout in 1 collection.
 exports.likeShout = (req, res) => {
+  // Check if a liked document already exists
   const likeDocument = db
       .collection('likes')
       .where('userHandle', '==', req.user.handle)
@@ -160,6 +175,7 @@ exports.likeShout = (req, res) => {
 };
 
 exports.unlikeShout = (req, res) => {
+  // Check in the likes collection if there is a document/record of this shout being liked by you
   const likeDocument = db.collection('likes').where('userHandle', '==', req.user.handle)
       .where('shoutId', '==', req.params.shoutId).limit(1);
 
@@ -167,9 +183,10 @@ exports.unlikeShout = (req, res) => {
 
   let shoutData = {};
 
+  // Fetch the shout that you're unliking
   shoutDocument.get()
       .then((doc) => {
-        if (doc.exists) { // Get shout data
+        if (doc.exists) { // Get shout data so you can add its data to shoutData
           shoutData = doc.data();
           shoutData.shoutId = doc.id;
           return likeDocument.get();
@@ -200,12 +217,15 @@ exports.unlikeShout = (req, res) => {
 
 // Delete shout
 exports.deleteShout = (req, res) => {
+  // Assign the shout document you wanna delete to document
   const document = db.doc(`/shouts/${req.params.shoutId}`);
   document.get()
       .then((doc) =>{
+        // Check if the shout exists
         if (!doc.exists) {
           return res.status(404).json({error: 'Shout not found, can\'t delete'});
         }
+        // Ensure that only the creator can delete their own shout
         if (doc.data().userHandle !== req.user.handle) {
           return res.status(403).json({error: 'You can\'t delete another user\'s tweets'});
         } else {
